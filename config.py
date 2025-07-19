@@ -5,6 +5,7 @@ load_dotenv()
 
 # Telegram Bot Configuration
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '1558397457')
 
 # Solana Configuration
 SOLANA_NETWORK = os.getenv('SOLANA_NETWORK', 'devnet')  # devnet, testnet, mainnet-beta
