@@ -1,0 +1,6 @@
+python-telegram-bot==20.7
+solana==0.32.0
+base58==2.1.1
+cryptography==41.0.7
+asyncio==3.4.3
+python-dotenv==1.0.0
