@@ -1,5 +1,82 @@
-# Dependencies
-node_modules
+# Environment variables (contains sensitive data)
+.env
+.env.local
+.env.production
+.env.staging
 
-# Build artifacts
-dist
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+log/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Wallet files (for testing)
+*.json
+*.txt
+!requirements.txt
+!README.md
+!SECURITY.md
+
+# Backup files
+*.bak
+*.backup
+
+# Security
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+secrets.json
+config.json

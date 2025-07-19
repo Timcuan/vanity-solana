@@ -1,10 +1,14 @@
 import base58
 import secrets
+import logging
 from typing import Tuple, Optional
 from solana.keypair import Keypair
 from solana.publickey import PublicKey
 import time
 from config import SOLANA_NETWORK
+
+# SECURE: Configure logging without sensitive data
+logger = logging.getLogger(__name__)
 
 class SolanaVanityGenerator:
     def __init__(self, max_attempts: int = 1000000):
@@ -27,7 +31,8 @@ class SolanaVanityGenerator:
         start_time = time.time()
         attempts = 0
         
-        print(f"🔍 Searching for address starting with: {prefix}")
+        # SECURE: Only log prefix, not sensitive data
+        logger.info(f"Starting vanity address generation for prefix: {prefix}")
         
         while attempts < self.max_attempts:
             attempts += 1
@@ -39,17 +44,20 @@ class SolanaVanityGenerator:
             # Check if the address starts with the desired prefix
             if public_key.startswith(prefix):
                 time_taken = time.time() - start_time
-                print(f"✅ Found vanity address after {attempts:,} attempts in {time_taken:.2f} seconds")
+                # SECURE: Only log stats, not the actual address
+                logger.info(f"Successfully generated vanity address after {attempts:,} attempts in {time_taken:.2f} seconds")
                 return keypair, attempts, time_taken
             
             # Progress update every 10000 attempts
             if attempts % 10000 == 0:
                 elapsed = time.time() - start_time
                 rate = attempts / elapsed if elapsed > 0 else 0
-                print(f"⏳ Attempts: {attempts:,} | Rate: {rate:.0f}/sec | Elapsed: {elapsed:.1f}s")
+                # SECURE: Only log progress stats
+                logger.debug(f"Progress: {attempts:,} attempts | Rate: {rate:.0f}/sec | Elapsed: {elapsed:.1f}s")
         
         time_taken = time.time() - start_time
-        print(f"❌ Failed to find vanity address after {attempts:,} attempts")
+        # SECURE: Only log failure stats
+        logger.warning(f"Failed to generate vanity address after {attempts:,} attempts")
         return None, attempts, time_taken
     
     def validate_prefix(self, prefix: str) -> Tuple[bool, str]:
@@ -107,6 +115,46 @@ class SolanaVanityGenerator:
 `{private_key}`
 
 ⚠️ **Security Warning:**
+• Keep your private key secure and never share it
+• This is a real Solana keypair that can hold funds
+• Store the private key offline in a secure location
+• Consider using a hardware wallet for large amounts
+
+🌐 **Network:** Solana {SOLANA_NETWORK}
+"""
+        return info
+    
+    def format_keypair_info_secure(self, keypair: Keypair, attempts: int, time_taken: float) -> str:
+        """
+        Format keypair information for display WITHOUT private keys.
+        
+        Args:
+            keypair (Keypair): The generated keypair
+            attempts (int): Number of attempts made
+            time_taken (float): Time taken to generate
+            
+        Returns:
+            str: Formatted keypair information (public key only)
+        """
+        public_key = str(keypair.public_key)
+        
+        info = f"""
+🎯 **Vanity Address Generated Successfully!**
+
+📊 **Generation Stats:**
+• Attempts: {attempts:,}
+• Time taken: {time_taken:.2f} seconds
+• Rate: {attempts/time_taken:.0f} attempts/sec
+
+🔑 **Public Key:**
+`{public_key}`
+
+📁 **Files Sent:**
+✅ Wallet JSON file sent to your DM
+✅ Private key file sent to your DM
+
+⚠️ **Security Warning:**
+• Private keys are sent via DM only
 • Keep your private key secure and never share it
 • This is a real Solana keypair that can hold funds
 • Store the private key offline in a secure location

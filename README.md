@@ -6,9 +6,12 @@ A Telegram bot that generates Solana vanity addresses with custom prefixes. This
 
 - 🚀 Generate Solana vanity addresses with custom prefixes
 - 🔒 Real Solana keypairs (public and private keys)
+- 🔐 **Secure Private Key Delivery** - Sent via DM only, never in chat
+- 📁 **File Delivery** - JSON and private key files sent to DM
 - ⏱️ Real-time generation progress updates
 - 📊 Generation statistics (attempts, time, rate)
 - 🛡️ Input validation and error handling
+- 🔒 **Zero Sensitive Data Logging** - No private keys or personal info in logs
 - 📱 User-friendly Telegram interface
 - ⚡ Fast generation for short prefixes
 - 🔧 Configurable settings
@@ -89,17 +92,24 @@ These may take longer (minutes to hours)
 
 ## Security Considerations
 
+🔒 **Enhanced Security Features:**
+
+1. **Private Key Security**: Private keys are sent via DM only, never displayed in chat
+2. **Zero Logging of Sensitive Data**: No private keys or personal information in logs
+3. **Secure File Delivery**: Wallet files sent directly to user's DM
+4. **Minimal Admin Notifications**: Only user ID and stats sent to admin, no personal info
+5. **Offline Storage**: Store generated private keys offline in a secure location
+6. **Hardware Wallets**: For large amounts, consider transferring to a hardware wallet
+7. **Network Selection**: The bot defaults to devnet for safety
+8. **Bot Access**: Only share your bot with trusted users
+
 ⚠️ **Important Security Notes:**
 
-1. **Private Key Security**: The bot generates real Solana keypairs. Keep private keys secure and never share them.
-
-2. **Offline Storage**: Store generated private keys offline in a secure location.
-
-3. **Hardware Wallets**: For large amounts, consider transferring to a hardware wallet.
-
-4. **Network Selection**: The bot defaults to devnet for safety. Change to mainnet-beta only when ready for real transactions.
-
-5. **Bot Access**: Only share your bot with trusted users.
+- Private keys are never shown in chat messages
+- All sensitive data is sent via direct message only
+- No personal information (names, usernames) is logged
+- Admin notifications contain only user ID and generation stats
+- Files are automatically deleted from server after sending
 
 ## Technical Details
 

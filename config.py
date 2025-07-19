@@ -33,7 +33,7 @@ Welcome! I can help you generate Solana vanity addresses with custom prefixes.
 **📁 File Delivery:**
 ✅ Wallet JSON file will be sent to your DM
 ✅ Private key file will be sent to your DM
-✅ Quick copy keys in chat
+🔒 Private keys are sent via DM only for security
 
 **Note:** Longer prefixes take more time to generate. Maximum prefix length is 8 characters.
 """
@@ -49,8 +49,8 @@ HELP_MESSAGE = """
 **📁 File Delivery:**
 • Wallet JSON file (complete wallet info)
 • Private key file (secure format)
-• Quick copy keys in chat
 • All files sent to your DM automatically
+• Private keys are never shown in chat for security
 
 **Tips:**
 • Shorter prefixes (2-4 chars) generate faster

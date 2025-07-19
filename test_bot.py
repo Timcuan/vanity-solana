@@ -47,7 +47,8 @@ def test_vanity_generator():
             print(f"📊 Attempts: {attempts:,}")
             print(f"⏱️  Time taken: {time_taken:.2f} seconds")
             print(f"🔑 Public Key: {str(keypair.public_key)}")
-            print(f"🔐 Private Key: {str(keypair.secret_key.hex())}")
+            # SECURE: Don't print private keys in test
+            print(f"🔐 Private Key: [HIDDEN FOR SECURITY]")
         else:
             print(f"❌ Failed to generate address with prefix '{prefix}'")
             print(f"📊 Attempts made: {attempts:,}")
@@ -88,6 +89,7 @@ if __name__ == "__main__":
     print("🚀 Solana Vanity Generator Test Suite")
     print("This will test the generator functionality.")
     print("Note: This may take some time for longer prefixes.")
+    print("🔒 Private keys are hidden for security.")
     
     # Test validation first
     test_validation()

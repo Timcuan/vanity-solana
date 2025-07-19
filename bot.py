@@ -12,7 +12,7 @@ from config import (
 )
 from vanity_generator import SolanaVanityGenerator
 
-# Configure logging
+# Configure logging - SECURE: No sensitive data
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -24,11 +24,12 @@ vanity_generator = SolanaVanityGenerator(max_attempts=MAX_ATTEMPTS)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /start command."""
-    user_info = f"👤 User: {update.effective_user.first_name} (@{update.effective_user.username})"
-    chat_info = f"💬 Chat: {update.effective_chat.type} (ID: {update.effective_chat.id})"
+    # SECURE: Only log user ID, not personal info
+    user_id = update.effective_user.id
+    chat_type = update.effective_chat.type
     
-    # Send notification to admin
-    notification = f"🚀 **Bot Started**\n\n{user_info}\n{chat_info}\n⏰ Time: {update.message.date}"
+    # Send minimal notification to admin
+    notification = f"🚀 **Bot Started**\n\n👤 User ID: {user_id}\n💬 Chat: {chat_type}\n⏰ Time: {update.message.date}"
     await send_notification(context, notification)
     
     await update.message.reply_text(WELCOME_MESSAGE, parse_mode='Markdown')
@@ -65,9 +66,9 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ {error_message}")
         return
     
-    # Send notification to admin about generation request
-    user_info = f"👤 User: {update.effective_user.first_name} (@{update.effective_user.username})"
-    generation_notification = f"🔍 **Generation Request**\n\n{user_info}\n🎯 Prefix: `{prefix}`\n⏱️ Estimated: {vanity_generator.estimate_generation_time(prefix)}"
+    # SECURE: Only log user ID and prefix, no personal info
+    user_id = update.effective_user.id
+    generation_notification = f"🔍 **Generation Request**\n\n👤 User ID: {user_id}\n🎯 Prefix: `{prefix}`\n⏱️ Estimated: {vanity_generator.estimate_generation_time(prefix)}"
     await send_notification(context, generation_notification)
     
     # Send initial message
@@ -84,33 +85,22 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keypair, attempts, time_taken = vanity_generator.generate_vanity_address(prefix)
         
         if keypair:
-            # Format the result
-            result_text = vanity_generator.format_keypair_info(keypair, attempts, time_taken)
+            # SECURE: Don't include private keys in result text
+            result_text = vanity_generator.format_keypair_info_secure(keypair, attempts, time_taken)
             
-            # Send success notification to admin
-            success_notification = f"✅ **Generation Success**\n\n{user_info}\n🎯 Prefix: `{prefix}`\n📊 Attempts: {attempts:,}\n⏱️ Time: {time_taken:.2f}s\n🔑 Address: `{str(keypair.public_key)[:20]}...`"
+            # SECURE: Only send success notification with minimal info
+            success_notification = f"✅ **Generation Success**\n\n👤 User ID: {user_id}\n🎯 Prefix: `{prefix}`\n📊 Attempts: {attempts:,}\n⏱️ Time: {time_taken:.2f}s"
             await send_notification(context, success_notification)
             
             # Update the status message with the result
             await status_message.edit_text(result_text, parse_mode='Markdown')
             
-            # Send a separate message with just the keys for easy copying
-            keys_text = f"""
-📋 **Quick Copy Keys:**
-
-🔑 **Public Key:**
-`{str(keypair.public_key)}`
-
-🔐 **Private Key:**
-`{str(keypair.secret_key.hex())}`
-"""
-            await update.message.reply_text(keys_text, parse_mode='Markdown')
-            
-            # Send wallet files to user via DM
+            # SECURE: Send wallet files to user via DM only
             try:
-                await send_wallet_files(context, update.effective_user.id, keypair, prefix, attempts, time_taken, user_info)
+                await send_wallet_files(context, update.effective_user.id, keypair, prefix, attempts, time_taken, user_id)
             except Exception as e:
-                logger.error(f"Failed to send files to user {update.effective_user.id}: {e}")
+                # SECURE: Don't log user ID in error
+                logger.error(f"Failed to send files to user: {e}")
                 await update.message.reply_text(
                     "⚠️ **Note:** Could not send wallet files via DM. Please make sure you have started a conversation with the bot.\n\n"
                     "To receive wallet files, please:\n"
@@ -120,8 +110,8 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             
         else:
-            # Send failure notification to admin
-            failure_notification = f"❌ **Generation Failed**\n\n{user_info}\n🎯 Prefix: `{prefix}`\n📊 Attempts: {attempts:,}\n⏱️ Time: {time_taken:.2f}s"
+            # SECURE: Send failure notification with minimal info
+            failure_notification = f"❌ **Generation Failed**\n\n👤 User ID: {user_id}\n🎯 Prefix: `{prefix}`\n📊 Attempts: {attempts:,}\n⏱️ Time: {time_taken:.2f}s"
             await send_notification(context, failure_notification)
             
             await status_message.edit_text(
@@ -133,6 +123,7 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     
     except Exception as e:
+        # SECURE: Don't log sensitive data in errors
         logger.error(f"Error generating vanity address: {e}")
         await status_message.edit_text(
             f"❌ **Error occurred**\n\n"
@@ -160,7 +151,7 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE, message: str):
     except Exception as e:
         logger.error(f"Failed to send notification: {e}")
 
-async def create_wallet_json(keypair, prefix: str, attempts: int, time_taken: float, user_info: str):
+async def create_wallet_json(keypair, prefix: str, attempts: int, time_taken: float, user_id: int):
     """Create a JSON file with wallet information."""
     wallet_data = {
         "wallet_info": {
@@ -172,7 +163,7 @@ async def create_wallet_json(keypair, prefix: str, attempts: int, time_taken: fl
                 "time_taken_seconds": time_taken,
                 "rate_per_second": attempts / time_taken if time_taken > 0 else 0
             },
-            "user_info": user_info
+            "user_id": user_id
         },
         "keys": {
             "public_key": str(keypair.public_key),
@@ -197,11 +188,11 @@ async def create_wallet_json(keypair, prefix: str, attempts: int, time_taken: fl
     
     return temp_file.name
 
-async def send_wallet_files(context: ContextTypes.DEFAULT_TYPE, chat_id: int, keypair, prefix: str, attempts: int, time_taken: float, user_info: str):
+async def send_wallet_files(context: ContextTypes.DEFAULT_TYPE, chat_id: int, keypair, prefix: str, attempts: int, time_taken: float, user_id: int):
     """Send wallet JSON file and private key file to user."""
     try:
         # Create JSON file
-        json_file_path = await create_wallet_json(keypair, prefix, attempts, time_taken, user_info)
+        json_file_path = await create_wallet_json(keypair, prefix, attempts, time_taken, user_id)
         
         # Send JSON file
         with open(json_file_path, 'rb') as json_file:
