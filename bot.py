@@ -1,5 +1,9 @@
 import asyncio
 import logging
+import json
+import tempfile
+import os
+from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from config import (
@@ -102,6 +106,19 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
             await update.message.reply_text(keys_text, parse_mode='Markdown')
             
+            # Send wallet files to user via DM
+            try:
+                await send_wallet_files(context, update.effective_user.id, keypair, prefix, attempts, time_taken, user_info)
+            except Exception as e:
+                logger.error(f"Failed to send files to user {update.effective_user.id}: {e}")
+                await update.message.reply_text(
+                    "⚠️ **Note:** Could not send wallet files via DM. Please make sure you have started a conversation with the bot.\n\n"
+                    "To receive wallet files, please:\n"
+                    "1. Send `/start` to the bot in a private message\n"
+                    "2. Try generating again",
+                    parse_mode='Markdown'
+                )
+            
         else:
             # Send failure notification to admin
             failure_notification = f"❌ **Generation Failed**\n\n{user_info}\n🎯 Prefix: `{prefix}`\n📊 Attempts: {attempts:,}\n⏱️ Time: {time_taken:.2f}s"
@@ -142,6 +159,112 @@ async def send_notification(context: ContextTypes.DEFAULT_TYPE, message: str):
         )
     except Exception as e:
         logger.error(f"Failed to send notification: {e}")
+
+async def create_wallet_json(keypair, prefix: str, attempts: int, time_taken: float, user_info: str):
+    """Create a JSON file with wallet information."""
+    wallet_data = {
+        "wallet_info": {
+            "prefix": prefix,
+            "generated_at": datetime.now().isoformat(),
+            "network": SOLANA_NETWORK,
+            "generation_stats": {
+                "attempts": attempts,
+                "time_taken_seconds": time_taken,
+                "rate_per_second": attempts / time_taken if time_taken > 0 else 0
+            },
+            "user_info": user_info
+        },
+        "keys": {
+            "public_key": str(keypair.public_key),
+            "private_key": str(keypair.secret_key.hex()),
+            "private_key_base58": str(keypair.secret_key)
+        },
+        "security_warning": {
+            "message": "Keep your private key secure and never share it with anyone",
+            "recommendations": [
+                "Store private key offline in a secure location",
+                "Use hardware wallet for large amounts",
+                "Never share private key via unsecured channels",
+                "Make multiple secure backups"
+            ]
+        }
+    }
+    
+    # Create temporary JSON file
+    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+    json.dump(wallet_data, temp_file, indent=2)
+    temp_file.close()
+    
+    return temp_file.name
+
+async def send_wallet_files(context: ContextTypes.DEFAULT_TYPE, chat_id: int, keypair, prefix: str, attempts: int, time_taken: float, user_info: str):
+    """Send wallet JSON file and private key file to user."""
+    try:
+        # Create JSON file
+        json_file_path = await create_wallet_json(keypair, prefix, attempts, time_taken, user_info)
+        
+        # Send JSON file
+        with open(json_file_path, 'rb') as json_file:
+            await context.bot.send_document(
+                chat_id=chat_id,
+                document=json_file,
+                filename=f"solana_wallet_{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                caption=f"🔐 **Solana Wallet JSON File**\n\n🎯 Prefix: `{prefix}`\n📊 Attempts: {attempts:,}\n⏱️ Time: {time_taken:.2f}s\n\n⚠️ Keep this file secure!"
+            )
+        
+        # Create private key file
+        private_key_content = f"""Solana Private Key File
+Generated: {datetime.now().isoformat()}
+Prefix: {prefix}
+Network: {SOLANA_NETWORK}
+
+PRIVATE KEY (HEX):
+{str(keypair.secret_key.hex())}
+
+PRIVATE KEY (BASE58):
+{str(keypair.secret_key)}
+
+PUBLIC KEY:
+{str(keypair.public_key)}
+
+SECURITY WARNING:
+- Keep this file secure and never share it
+- Store offline in a secure location
+- Use hardware wallet for large amounts
+- Make multiple secure backups
+"""
+        
+        # Create temporary private key file
+        private_key_file = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+        private_key_file.write(private_key_content)
+        private_key_file.close()
+        
+        # Send private key file
+        with open(private_key_file.name, 'rb') as pk_file:
+            await context.bot.send_document(
+                chat_id=chat_id,
+                document=pk_file,
+                filename=f"private_key_{prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                caption=f"🔑 **Private Key File**\n\n🎯 Prefix: `{prefix}`\n\n⚠️ **CRITICAL SECURITY WARNING**\n• Keep this file absolutely secure\n• Never share with anyone\n• Store offline only\n• Use hardware wallet for large amounts"
+            )
+        
+        # Clean up temporary files
+        os.unlink(json_file_path)
+        os.unlink(private_key_file.name)
+        
+        # Send additional security message
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="🔒 **Security Reminder**\n\n✅ Files have been sent to your DM\n⚠️ Delete these files from Telegram after downloading\n💾 Store them securely offline\n🔐 Consider using a hardware wallet for large amounts",
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to send wallet files: {e}")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="❌ Error creating wallet files. Please try again or contact support."
+        )
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors."""

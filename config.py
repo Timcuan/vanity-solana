@@ -30,6 +30,11 @@ Welcome! I can help you generate Solana vanity addresses with custom prefixes.
 **Example:**
 `/generate SOL` - Generates an address starting with "SOL"
 
+**📁 File Delivery:**
+✅ Wallet JSON file will be sent to your DM
+✅ Private key file will be sent to your DM
+✅ Quick copy keys in chat
+
 **Note:** Longer prefixes take more time to generate. Maximum prefix length is 8 characters.
 """
 
@@ -41,6 +46,12 @@ HELP_MESSAGE = """
 2. The bot will generate a Solana keypair with your desired prefix
 3. You'll receive both the public key and private key
 
+**📁 File Delivery:**
+• Wallet JSON file (complete wallet info)
+• Private key file (secure format)
+• Quick copy keys in chat
+• All files sent to your DM automatically
+
 **Tips:**
 • Shorter prefixes (2-4 chars) generate faster
 • Longer prefixes (5-8 chars) may take several minutes
@@ -51,6 +62,7 @@ HELP_MESSAGE = """
 ⚠️ Never share your private keys with anyone
 ⚠️ This bot generates real Solana keypairs
 ⚠️ Store private keys securely offline
+⚠️ Delete files from Telegram after downloading
 """
 
 STATUS_MESSAGE = """
