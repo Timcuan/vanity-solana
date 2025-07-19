@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Vanity Generator</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🔗</div>
+                <h1>Solana Vanity</h1>
+            </div>
+            <div class="network-badge" id="networkBadge">
+                <span class="network-dot"></span>
+                Devnet
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Welcome Section -->
+            <section class="welcome-section" id="welcomeSection">
+                <div class="welcome-card">
+                    <h2>Generate Custom Solana Addresses</h2>
+                    <p>Create Solana addresses that start with your desired prefix</p>
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <span class="feature-icon">⚡</span>
+                            <span>Fast Generation</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🔒</span>
+                            <span>Secure Keys</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📱</span>
+                            <span>Mobile Friendly</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="showGenerator()">
+                        Start Generating
+                    </button>
+                </div>
+            </section>
+
+            <!-- Generator Section -->
+            <section class="generator-section hidden" id="generatorSection">
+                <div class="generator-card">
+                    <h3>Generate Vanity Address</h3>
+                    
+                    <!-- Input Form -->
+                    <div class="input-group">
+                        <label for="prefixInput">Desired Prefix</label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="text" 
+                                id="prefixInput" 
+                                placeholder="Enter prefix (e.g., SOL, 123, ABC)"
+                                maxlength="8"
+                                pattern="[A-Za-z0-9]+"
+                            >
+                            <div class="input-hint">
+                                <span id="charCount">0</span>/8 characters
+                            </div>
+                        </div>
+                        <div class="input-examples">
+                            Examples: SOL, 123, ABC, MY
+                        </div>
+                    </div>
+
+                    <!-- Network Selection -->
+                    <div class="input-group">
+                        <label>Network</label>
+                        <div class="network-selector">
+                            <button class="network-btn active" data-network="devnet">
+                                <span class="network-dot devnet"></span>
+                                Devnet
+                            </button>
+                            <button class="network-btn" data-network="testnet">
+                                <span class="network-dot testnet"></span>
+                                Testnet
+                            </button>
+                            <button class="network-btn" data-network="mainnet">
+                                <span class="network-dot mainnet"></span>
+                                Mainnet
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button class="btn btn-primary btn-large" id="generateBtn" onclick="startGeneration()">
+                        <span class="btn-text">Generate Address</span>
+                        <span class="btn-loading hidden">
+                            <div class="spinner"></div>
+                            Generating...
+                        </span>
+                    </button>
+
+                    <!-- Progress Section -->
+                    <div class="progress-section hidden" id="progressSection">
+                        <div class="progress-info">
+                            <div class="progress-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Attempts</span>
+                                    <span class="stat-value" id="attemptsCount">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Time</span>
+                                    <span class="stat-value" id="timeElapsed">0s</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Rate</span>
+                                    <span class="stat-value" id="generationRate">0/s</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="stopGeneration()">
+                            Stop Generation
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section hidden" id="resultsSection">
+                <div class="results-card">
+                    <div class="success-header">
+                        <div class="success-icon">✅</div>
+                        <h3>Address Generated!</h3>
+                    </div>
+                    
+                    <div class="result-details">
+                        <div class="result-item">
+                            <label>Generated Address:</label>
+                            <div class="address-display" id="generatedAddress">
+                                <span class="address-text"></span>
+                                <button class="copy-btn" onclick="copyToClipboard('address')">
+                                    📋
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="result-item">
+                            <label>Prefix:</label>
+                            <span class="prefix-display" id="generatedPrefix"></span>
+                        </div>
+                        
+                        <div class="result-item">
+                            <label>Attempts:</label>
+                            <span id="finalAttempts"></span>
+                        </div>
+                        
+                        <div class="result-item">
+                            <label>Time Taken:</label>
+                            <span id="finalTime"></span>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="downloadKeypair()">
+                            Download Keypair
+                        </button>
+                        <button class="btn btn-secondary" onclick="generateNew()">
+                            Generate Another
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section class="history-section hidden" id="historySection">
+                <div class="history-card">
+                    <h3>Generation History</h3>
+                    <div class="history-list" id="historyList">
+                        <!-- History items will be populated here -->
+                    </div>
+                    <button class="btn btn-secondary" onclick="showGenerator()">
+                        Generate New Address
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" onclick="showSection('welcome')">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-text">Home</span>
+            </button>
+            <button class="nav-btn" onclick="showSection('generator')">
+                <span class="nav-icon">⚡</span>
+                <span class="nav-text">Generate</span>
+            </button>
+            <button class="nav-btn" onclick="showSection('history')">
+                <span class="nav-icon">📋</span>
+                <span class="nav-text">History</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
