@@ -24,8 +24,10 @@ Welcome! I can help you generate Solana vanity addresses with custom prefixes.
 **Available Commands:**
 • `/start` - Show this welcome message
 • `/generate <prefix>` - Generate a vanity address with custom prefix
+• `/stop` - Stop current generation process
 • `/help` - Show help information
 • `/status` - Check bot status
+• `/log` - View generation logs (admin only)
 
 **Example:**
 `/generate SOL` - Generates an address starting with "SOL"
@@ -45,6 +47,8 @@ HELP_MESSAGE = """
 1. Use `/generate <prefix>` to create a vanity address
 2. The bot will generate a Solana keypair with your desired prefix
 3. You'll receive both the public key and private key
+4. Use `/stop` to cancel a running generation
+5. Use `/log` to view generation history (admin only)
 
 **📁 File Delivery:**
 • Wallet JSON file (complete wallet info)

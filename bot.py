@@ -22,6 +22,78 @@ logger = logging.getLogger(__name__)
 # Initialize the vanity generator
 vanity_generator = SolanaVanityGenerator(max_attempts=MAX_ATTEMPTS)
 
+# Global variables for tracking
+active_generations = {}  # Track active generation processes
+generation_log = []      # Log of all generation attempts
+MAX_LOG_ENTRIES = 100    # Maximum number of log entries to keep
+
+# Generation status tracking
+class GenerationStatus:
+    def __init__(self, user_id: int, prefix: str, start_time: datetime):
+        self.user_id = user_id
+        self.prefix = prefix
+        self.start_time = start_time
+        self.attempts = 0
+        self.is_running = True
+        self.status_message = None
+        self.end_time = None
+        self.result = None  # 'success', 'failed', 'stopped'
+        self.final_attempts = 0
+        self.time_taken = 0.0
+
+def add_log_entry(user_id: int, prefix: str, result: str, attempts: int, time_taken: float):
+    """Add a log entry for generation tracking."""
+    entry = {
+        'timestamp': datetime.now().isoformat(),
+        'user_id': user_id,
+        'prefix': prefix,
+        'result': result,
+        'attempts': attempts,
+        'time_taken': time_taken,
+        'network': SOLANA_NETWORK
+    }
+    
+    generation_log.append(entry)
+    
+    # Keep only the last MAX_LOG_ENTRIES
+    if len(generation_log) > MAX_LOG_ENTRIES:
+        generation_log.pop(0)
+    
+    logger.info(f"Log entry added: User {user_id}, Prefix {prefix}, Result {result}, Attempts {attempts}")
+
+def get_generation_stats():
+    """Get statistics from generation log."""
+    if not generation_log:
+        return {
+            'total_generations': 0,
+            'successful': 0,
+            'failed': 0,
+            'stopped': 0,
+            'total_attempts': 0,
+            'total_time': 0.0,
+            'avg_attempts': 0,
+            'avg_time': 0.0
+        }
+    
+    total = len(generation_log)
+    successful = len([e for e in generation_log if e['result'] == 'success'])
+    failed = len([e for e in generation_log if e['result'] == 'failed'])
+    stopped = len([e for e in generation_log if e['result'] == 'stopped'])
+    
+    total_attempts = sum(e['attempts'] for e in generation_log)
+    total_time = sum(e['time_taken'] for e in generation_log)
+    
+    return {
+        'total_generations': total,
+        'successful': successful,
+        'failed': failed,
+        'stopped': stopped,
+        'total_attempts': total_attempts,
+        'total_time': total_time,
+        'avg_attempts': total_attempts / total if total > 0 else 0,
+        'avg_time': total_time / total if total > 0 else 0
+    }
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /start command."""
     # SECURE: Only log user ID, not personal info
@@ -47,6 +119,103 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(status_text, parse_mode='Markdown')
 
+async def log_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the /log command."""
+    user_id = update.effective_user.id
+    
+    # Check if user is admin
+    if str(user_id) != TELEGRAM_CHAT_ID:
+        await update.message.reply_text(
+            "❌ **Access Denied**\n\nOnly administrators can view generation logs.",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Get generation statistics
+    stats = get_generation_stats()
+    
+    # Create log summary
+    log_summary = f"""
+📊 **Generation Log Summary**
+
+📈 **Statistics:**
+• Total Generations: {stats['total_generations']}
+• Successful: {stats['successful']} ✅
+• Failed: {stats['failed']} ❌
+• Stopped: {stats['stopped']} ⏹️
+
+📊 **Performance:**
+• Total Attempts: {stats['total_attempts']:,}
+• Total Time: {stats['total_time']:.1f}s
+• Avg Attempts: {stats['avg_attempts']:,.0f}
+• Avg Time: {stats['avg_time']:.1f}s
+
+🌐 **Network:** {SOLANA_NETWORK}
+"""
+    
+    # Get recent entries (last 10)
+    recent_entries = generation_log[-10:] if generation_log else []
+    
+    if recent_entries:
+        log_summary += "\n📝 **Recent Entries (Last 10):**\n"
+        for entry in reversed(recent_entries):
+            timestamp = datetime.fromisoformat(entry['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            result_emoji = "✅" if entry['result'] == 'success' else "❌" if entry['result'] == 'failed' else "⏹️"
+            log_summary += f"• {timestamp} | User {entry['user_id']} | {entry['prefix']} | {result_emoji} | {entry['attempts']:,} attempts | {entry['time_taken']:.1f}s\n"
+    else:
+        log_summary += "\n📝 **No generation history yet.**"
+    
+    await update.message.reply_text(log_summary, parse_mode='Markdown')
+
+async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the /stop command."""
+    user_id = update.effective_user.id
+    
+    # Check if user has an active generation
+    if user_id not in active_generations:
+        await update.message.reply_text(
+            "❌ **No Active Generation**\n\nYou don't have any active generation process to stop.",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Stop the generation
+    generation = active_generations[user_id]
+    generation.is_running = False
+    generation.end_time = datetime.now()
+    generation.result = 'stopped'
+    generation.time_taken = (generation.end_time - generation.start_time).total_seconds()
+    
+    # Add to log
+    add_log_entry(user_id, generation.prefix, 'stopped', generation.attempts, generation.time_taken)
+    
+    # Remove from active generations
+    del active_generations[user_id]
+    
+    # Update status message if available
+    if generation.status_message:
+        try:
+            await generation.status_message.edit_text(
+                f"⏹️ **Generation Stopped**\n\n"
+                f"**Prefix:** `{generation.prefix}`\n"
+                f"**Attempts made:** {generation.attempts:,}\n"
+                f"**Time elapsed:** {generation.time_taken:.1f} seconds\n\n"
+                f"Use `/generate <prefix>` to start a new generation.",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Failed to update status message: {e}")
+    
+    # Send confirmation
+    await update.message.reply_text(
+        f"⏹️ **Generation Stopped Successfully**\n\n"
+        f"**Prefix:** `{generation.prefix}`\n"
+        f"**Attempts made:** {generation.attempts:,}\n"
+        f"**Time elapsed:** {generation.time_taken:.1f} seconds\n\n"
+        f"Use `/generate <prefix>` to start a new generation.",
+        parse_mode='Markdown'
+    )
+
 async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /generate command."""
     if not context.args:
@@ -66,8 +235,22 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ {error_message}")
         return
     
-    # SECURE: Only log user ID and prefix, no personal info
+    # Check if user already has an active generation
     user_id = update.effective_user.id
+    if user_id in active_generations:
+        await update.message.reply_text(
+            "❌ **Generation Already Active**\n\n"
+            "You already have an active generation process.\n"
+            "Use `/stop` to stop the current generation first.",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Create generation status tracking
+    generation = GenerationStatus(user_id, prefix, datetime.now())
+    active_generations[user_id] = generation
+    
+    # SECURE: Only log user ID and prefix, no personal info
     generation_notification = f"🔍 **Generation Request**\n\n👤 User ID: {user_id}\n🎯 Prefix: `{prefix}`\n⏱️ Estimated: {vanity_generator.estimate_generation_time(prefix)}"
     await send_notification(context, generation_notification)
     
@@ -76,17 +259,28 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🔍 **Generating vanity address...**\n\n"
         f"**Prefix:** `{prefix}`\n"
         f"**Estimated time:** {vanity_generator.estimate_generation_time(prefix)}\n\n"
-        f"⏳ Please wait, this may take a while...",
+        f"⏳ Please wait, this may take a while...\n"
+        f"💡 Use `/stop` to cancel this generation.",
         parse_mode='Markdown'
     )
     
+    # Store status message for potential updates
+    generation.status_message = status_message
+    
     try:
-        # Generate the vanity address
-        keypair, attempts, time_taken = vanity_generator.generate_vanity_address(prefix)
+        # Generate the vanity address with stop checking
+        keypair, attempts, time_taken = await generate_with_stop_check(generation, prefix)
         
-        if keypair:
-            # SECURE: Don't include private keys in result text
+        # Remove from active generations
+        if user_id in active_generations:
+            del active_generations[user_id]
+        
+        if keypair and generation.is_running:
+            # Generation completed successfully
             result_text = vanity_generator.format_keypair_info_secure(keypair, attempts, time_taken)
+            
+            # Add to log
+            add_log_entry(user_id, prefix, 'success', attempts, time_taken)
             
             # SECURE: Only send success notification with minimal info
             success_notification = f"✅ **Generation Success**\n\n👤 User ID: {user_id}\n🎯 Prefix: `{prefix}`\n📊 Attempts: {attempts:,}\n⏱️ Time: {time_taken:.2f}s"
@@ -109,7 +303,20 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode='Markdown'
                 )
             
+        elif not generation.is_running:
+            # Generation was stopped
+            await status_message.edit_text(
+                f"⏹️ **Generation Stopped**\n\n"
+                f"**Prefix:** `{prefix}`\n"
+                f"**Attempts made:** {attempts:,}\n"
+                f"**Time elapsed:** {time_taken:.1f} seconds\n\n"
+                f"Use `/generate <prefix>` to start a new generation.",
+                parse_mode='Markdown'
+            )
         else:
+            # Generation failed
+            add_log_entry(user_id, prefix, 'failed', attempts, time_taken)
+            
             # SECURE: Send failure notification with minimal info
             failure_notification = f"❌ **Generation Failed**\n\n👤 User ID: {user_id}\n🎯 Prefix: `{prefix}`\n📊 Attempts: {attempts:,}\n⏱️ Time: {time_taken:.2f}s"
             await send_notification(context, failure_notification)
@@ -125,6 +332,11 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         # SECURE: Don't log sensitive data in errors
         logger.error(f"Error generating vanity address: {e}")
+        
+        # Remove from active generations
+        if user_id in active_generations:
+            del active_generations[user_id]
+        
         await status_message.edit_text(
             f"❌ **Error occurred**\n\n"
             f"An error occurred while generating the vanity address.\n"
@@ -187,6 +399,45 @@ async def create_wallet_json(keypair, prefix: str, attempts: int, time_taken: fl
     temp_file.close()
     
     return temp_file.name
+
+async def generate_with_stop_check(generation: GenerationStatus, prefix: str):
+    """Generate vanity address with stop checking capability."""
+    import time
+    from solana.keypair import Keypair
+    
+    start_time = time.time()
+    attempts = 0
+    
+    logger.info(f"Starting vanity address generation for prefix: {prefix}")
+    
+    while attempts < MAX_ATTEMPTS and generation.is_running:
+        attempts += 1
+        generation.attempts = attempts
+        
+        # Generate a new keypair
+        keypair = Keypair()
+        public_key = str(keypair.public_key)
+        
+        # Check if the address starts with the desired prefix
+        if public_key.startswith(prefix):
+            time_taken = time.time() - start_time
+            logger.info(f"Successfully generated vanity address after {attempts:,} attempts in {time_taken:.2f} seconds")
+            return keypair, attempts, time_taken
+        
+        # Progress update every 10000 attempts
+        if attempts % 10000 == 0:
+            elapsed = time.time() - start_time
+            rate = attempts / elapsed if elapsed > 0 else 0
+            logger.debug(f"Progress: {attempts:,} attempts | Rate: {rate:.0f}/sec | Elapsed: {elapsed:.1f}s")
+    
+    time_taken = time.time() - start_time
+    
+    if not generation.is_running:
+        logger.info(f"Generation stopped by user after {attempts:,} attempts")
+        return None, attempts, time_taken
+    else:
+        logger.warning(f"Failed to generate vanity address after {attempts:,} attempts")
+        return None, attempts, time_taken
 
 async def send_wallet_files(context: ContextTypes.DEFAULT_TYPE, chat_id: int, keypair, prefix: str, attempts: int, time_taken: float, user_id: int):
     """Send wallet JSON file and private key file to user."""
@@ -280,6 +531,8 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(CommandHandler("generate", generate_command))
+    application.add_handler(CommandHandler("log", log_command))
+    application.add_handler(CommandHandler("stop", stop_command))
     
     # Add message handler for non-command messages
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

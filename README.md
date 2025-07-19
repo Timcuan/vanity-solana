@@ -15,13 +15,18 @@ A Telegram bot that generates Solana vanity addresses with custom prefixes. This
 - 📱 User-friendly Telegram interface
 - ⚡ Fast generation for short prefixes
 - 🔧 Configurable settings
+- ⏹️ **Generation Control** - Stop running generations anytime
+- 📈 **Generation Logging** - Track all generation attempts and statistics
+- 🔍 **Admin Monitoring** - Comprehensive logs and analytics for administrators
 
 ## Commands
 
 - `/start` - Show welcome message and available commands
 - `/generate <prefix>` - Generate a vanity address with custom prefix
+- `/stop` - Stop current generation process
 - `/help` - Show detailed help information
 - `/status` - Check bot status and configuration
+- `/log` - View generation logs and statistics (admin only)
 
 ## Setup Instructions
 
